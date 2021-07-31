@@ -67,5 +67,13 @@ if arg[1] == '5' then
     end
     test:is(err_msg, exp_err, 'bad strip_core value')
 end
+if arg[1] == '6' then
+    test:plan(5)
+    test:ok(status, 'box.cfg is successful')
+    test:is(box.cfg['listen'], '3301', 'listen')
+    test:is(box.cfg['background'], true, 'background')
+    test:is(box.cfg['pid_file'], 'tarantool.pid', 'pid file')
+    test:is(box.cfg['log'], 'tarantool.log', 'log file')
+end
 
 os.exit(test:check() and 0 or 1)

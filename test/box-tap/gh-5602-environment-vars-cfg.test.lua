@@ -39,6 +39,11 @@ local cases = {
     'TT_BACKGROUND=true TT_VINYL_TIMEOUT=60.1',
     'TT_SQL_CACHE_SIZE=a',
     'TT_STRIP_CORE=a',
+    ('%s %s %s %s'):format(
+        'TT_LISTEN=3301',
+        'TT_LOG=tarantool.log',
+        'TT_PID_FILE=tarantool.pid',
+        'TT_BACKGROUND=true'),
 }
 
 test:plan(1)
