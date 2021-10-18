@@ -181,8 +181,7 @@ sio_getsockopt(int fd, int level, int optname,
 int sio_connect(int fd, struct sockaddr *addr, socklen_t addrlen);
 
 /**
- * Bind a socket to the given address. The diagnostics is not set
- * in case of EADDRINUSE.
+ * Bind a socket to the given address.
  */
 int sio_bind(int fd, struct sockaddr *addr, socklen_t addrlen);
 

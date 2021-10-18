@@ -94,11 +94,21 @@ void
 iproto_reset_stat(void);
 
 /**
- * String representation of the address served by
- * iproto. To be shown in box.info.
+ * Allocate and return array, which contains representation of the
+ * addresses served by iproto. To be shown in box.info. Buffer should
+ * be freed by the caller using 'iproto_bound_address_free'. @a size
+ * contains count of served addresses. Each address contained in block
+ * with SERVICE_NAME_MAXLEN len.
  */
-const char *
-iproto_bound_address(char *buf);
+char **
+iproto_bound_address(int *size);
+
+/**
+ * Free @a bound_address_array allocated by
+ * 'iproto_bound_address' function.
+ */
+void
+iproto_bound_address_free(char **bound_address_array);
 
 int
 iproto_rmean_foreach(void *cb, void *cb_ctx);
@@ -117,7 +127,7 @@ void
 iproto_init(int threads_count);
 
 int
-iproto_listen(const char *uri);
+iproto_listen(const char **uris, int size);
 
 void
 iproto_set_msg_max(int iproto_msg_max);

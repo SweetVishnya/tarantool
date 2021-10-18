@@ -217,7 +217,10 @@ coio_service_init(struct coio_service *service, const char *name,
 
 /** Wait until the service binds to the port. */
 void
-coio_service_start(struct evio_service *service, const char *uri);
+coio_service_start(struct coio_service *service, const char *uri);
+
+void
+coio_service_stop(struct coio_service *service);
 
 void
 coio_stat_init(ev_stat *stat, const char *path);

@@ -67,47 +67,50 @@ extern "C" {
  * If a service is not started, but only initialized, no
  * dedicated cleanup/destruction is necessary.
  */
-struct evio_service;
+struct evio_service_impl;
 
-typedef int (*evio_accept_f)(struct evio_service *, int, struct sockaddr *,
-			      socklen_t);
+typedef int (*evio_accept_f)(struct evio_service_impl *, int, struct sockaddr *,
+			     socklen_t);
 
-struct evio_service
-{
-	/** Service name. E.g. 'primary', 'secondary', etc. */
-	char name[SERVICE_NAME_MAXLEN];
-	/** Bind host:service, useful for logging */
-	char host[URI_MAXHOST];
-	char serv[URI_MAXSERVICE];
-
-	/** Interface/port to bind to */
-	union {
-		struct sockaddr addr;
-		struct sockaddr_storage addrstorage;
-	};
-	socklen_t addr_len;
-
-	/**
-	 * A callback invoked on every accepted client socket.
-	 * If a callback returned != 0, the accepted socket is
-	 * closed and the error is logged.
-	 */
-	evio_accept_f on_accept;
-	void *on_accept_param;
-
-	/** libev io object for the acceptor socket. */
-	struct ev_io ev;
-	ev_loop *loop;
+struct evio_service {
+        /** Total count of services */
+        int size;
+        /** Array of structures that encapsulate work with sockets */
+        struct evio_service_impl *services;
 };
+
+/**
+ * Return `accept` param specified for this service.
+ */
+void *
+evio_service_impl_accept_param(struct evio_service_impl *evio_service_impl);
+
+const char *
+evio_service_impl_name(struct evio_service_impl *evio_service_impl);
+
+/**
+ * Return array of strings which represented addresses served by @a service.
+ * Save array size in @a size.
+ */
+char **
+evio_service_bound_address(const struct evio_service *service, int *size);
+
+/**
+ * Free @a bound_address_array allocated by
+ * 'evio_service_array_bound_address' function.
+ */
+void
+evio_service_bound_address_free(char **bound_address_array);
 
 /** Initialize the service. Don't bind to the port yet. */
 void
-evio_service_init(ev_loop *loop, struct evio_service *service, const char *name,
-		  evio_accept_f on_accept, void *on_accept_param);
+evio_service_init(struct ev_loop *loop, struct evio_service *service, int size,
+                  const char *name, evio_accept_f on_accept,
+                  void *on_accept_param);
 
 /** Bind service to specified uri */
 int
-evio_service_bind(struct evio_service *service, const char *uri);
+evio_service_bind(struct evio_service *service, const char **uris);
 
 /**
  * Listen on bounded socket
@@ -125,17 +128,20 @@ evio_service_detach(struct evio_service *service);
 void
 evio_service_stop(struct evio_service *service);
 
+/**
+ * Updates @a dst evio_service socket settings according @a src evio service.
+ */
+void
+evio_service_attach(struct evio_service *dst, const struct evio_service *src);
+
+bool
+evio_service_is_active(struct evio_service *service);
+
 int
 evio_socket(struct ev_io *coio, int domain, int type, int protocol);
 
 void
 evio_close(ev_loop *loop, struct ev_io *evio);
-
-static inline bool
-evio_service_is_active(struct evio_service *service)
-{
-	return service->ev.fd >= 0;
-}
 
 static inline bool
 evio_has_fd(struct ev_io *ev)

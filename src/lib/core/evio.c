@@ -39,6 +39,61 @@
 #include <trivia/util.h>
 #include "exception.h"
 
+struct evio_service_impl
+{
+	/** Service name. E.g. 'primary', 'secondary', etc. */
+	char name[SERVICE_NAME_MAXLEN];
+	/** Bind host:service, useful for logging */
+	char host[URI_MAXHOST];
+	char serv[URI_MAXSERVICE];
+
+	/** Interface/port to bind to */
+	union {
+		struct sockaddr addr;
+		struct sockaddr_storage addrstorage;
+	};
+	socklen_t addr_len;
+
+	/**
+	 * A callback invoked on every accepted client socket.
+	 * If a callback returned != 0, the accepted socket is
+	 * closed and the error is logged.
+	 */
+	evio_accept_f on_accept;
+	void *on_accept_param;
+
+	/** libev io object for the acceptor socket. */
+	struct ev_io ev;
+	ev_loop *loop;
+};
+
+static inline bool
+evio_service_impl_is_active(struct evio_service_impl *service)
+{
+	return service->ev.fd >= 0;
+}
+
+static inline int
+evio_service_impl_bound_address(const struct evio_service_impl *service, char *buf)
+{
+	const struct sockaddr *sockaddr = (struct sockaddr *)
+		&service->addrstorage;
+	return sio_addr_snprintf(buf, SERVICE_NAME_MAXLEN, sockaddr,
+				 service->addr_len);
+}
+
+void *
+evio_service_impl_accept_param(struct evio_service_impl *evio_service_impl)
+{
+	return evio_service_impl->on_accept_param;
+}
+
+const char *
+evio_service_impl_name(struct evio_service_impl *evio_service_impl)
+{
+	return evio_service_impl->name;
+}
+
 /** Note: this function does not throw. */
 void
 evio_close(ev_loop *loop, struct ev_io *evio)
@@ -155,23 +210,18 @@ evio_setsockopt_server(int fd, int family, int type)
 	return 0;
 }
 
-static inline const char *
-evio_service_name(struct evio_service *service)
-{
-	return service->name;
-}
-
 /**
  * A callback invoked by libev when acceptor socket is ready.
  * Accept the socket, initialize it and pass to the on_accept
  * callback.
  */
 static void
-evio_service_accept_cb(ev_loop *loop, ev_io *watcher, int events)
+evio_service_impl_accept_cb(ev_loop *loop, ev_io *watcher, int events)
 {
 	(void) loop;
 	(void) events;
-	struct evio_service *service = (struct evio_service *) watcher->data;
+	struct evio_service_impl *service =
+		(struct evio_service_impl *) watcher->data;
 	int fd;
 	while (1) {
 		/*
@@ -202,38 +252,41 @@ evio_service_accept_cb(ev_loop *loop, ev_io *watcher, int events)
 }
 
 /*
- * Check if the UNIX socket which we failed to create exists and
- * no one is listening on it. Unlink the file if it's the case.
- * Set an error and return -1 otherwise.
+ * Check if the UNIX socket exists and no one is
+ * listening on it. Unlink the file if it's the case.
  */
 static int
-evio_service_reuse_addr(struct evio_service *service, int fd)
+evio_service_impl_reuse_addr(const char *uri)
 {
-	if ((service->addr.sa_family != AF_UNIX) || (errno != EADDRINUSE)) {
-		diag_set(SocketError, sio_socketname(fd),
-			 "evio_service_reuse_addr");
+	struct uri u;
+	if (uri_parse(&u, uri) || u.service == NULL) {
+		diag_set(IllegalParams, "invalid uri for bind: %s", uri);
 		return -1;
 	}
-	int save_errno = errno;
-	int cl_fd = sio_socket(service->addr.sa_family, SOCK_STREAM, 0);
+	if (strncmp(u.host, URI_HOST_UNIX, u.host_len) != 0)
+		return 0;
+
+	struct sockaddr_un un;
+	snprintf(un.sun_path, sizeof(un.sun_path), "%.*s",
+		 (int) u.service_len, u.service);
+	un.sun_family = AF_UNIX;
+
+	int cl_fd = sio_socket(un.sun_family, SOCK_STREAM, 0);
 	if (cl_fd < 0)
 		return -1;
 
-	if (connect(cl_fd, &service->addr, service->addr_len) == 0)
+	if (connect(cl_fd, (struct sockaddr *)&un, sizeof(un)) == 0)
 		goto err;
 
-	if (errno != ECONNREFUSED)
+	if (errno == ECONNREFUSED  && unlink(un.sun_path) != 0)
 		goto err;
 
-	if (unlink(((struct sockaddr_un *)(&service->addr))->sun_path))
-		goto err;
 	close(cl_fd);
-
 	return 0;
 err:
-	errno = save_errno;
+	errno = EADDRINUSE;
+	diag_set(SocketError, sio_socketname(cl_fd), "unlink");
 	close(cl_fd);
-	diag_set(SocketError, sio_socketname(fd), "unlink");
 	return -1;
 }
 
@@ -243,9 +296,9 @@ err:
  * Throws an exception if error.
  */
 static int
-evio_service_bind_addr(struct evio_service *service)
+evio_service_impl_bind_addr(struct evio_service_impl *service)
 {
-	say_debug("%s: binding to %s...", evio_service_name(service),
+	say_debug("%s: binding to %s...", evio_service_impl_name(service),
 		  sio_strfaddr(&service->addr, service->addr_len));
 	/* Create a socket. */
 	int fd = sio_socket(service->addr.sa_family,
@@ -257,19 +310,8 @@ evio_service_bind_addr(struct evio_service *service)
 				   SOCK_STREAM) != 0)
 		goto error;
 
-	if (sio_bind(fd, &service->addr, service->addr_len)) {
-		if (errno != EADDRINUSE)
-			goto error;
-		if (evio_service_reuse_addr(service, fd))
-			goto error;
-		if (sio_bind(fd, &service->addr, service->addr_len)) {
-			if (errno == EADDRINUSE) {
-				diag_set(SocketError, sio_socketname(fd),
-					 "bind");
-			}
-			goto error;
-		}
-	}
+	if (sio_bind(fd, &service->addr, service->addr_len))
+		goto error;
 
 	/*
 	 * After binding a result address may be different. For
@@ -278,7 +320,7 @@ evio_service_bind_addr(struct evio_service *service)
 	if (sio_getsockname(fd, &service->addr, &service->addr_len) != 0)
 		goto error;
 
-	say_info("%s: bound to %s", evio_service_name(service),
+	say_info("%s: bound to %s", evio_service_impl_name(service),
 		 sio_strfaddr(&service->addr, service->addr_len));
 
 	/* Register the socket in the event loop. */
@@ -294,10 +336,10 @@ error:
  *
  * @retval 0 for success
  */
-int
-evio_service_listen(struct evio_service *service)
+static int
+evio_service_impl_listen(struct evio_service_impl *service)
 {
-	say_debug("%s: listening on %s...", evio_service_name(service),
+	say_debug("%s: listening on %s...", evio_service_impl_name(service),
 		  sio_strfaddr(&service->addr, service->addr_len));
 
 	int fd = service->ev.fd;
@@ -307,11 +349,12 @@ evio_service_listen(struct evio_service *service)
 	return 0;
 }
 
-void
-evio_service_init(ev_loop *loop, struct evio_service *service, const char *name,
-		  evio_accept_f on_accept, void *on_accept_param)
+static void
+evio_service_impl_init(ev_loop *loop, struct evio_service_impl *service,
+		       const char *name, evio_accept_f on_accept,
+		       void *on_accept_param)
 {
-	memset(service, 0, sizeof(struct evio_service));
+	memset(service, 0, sizeof(struct evio_service_impl));
 	snprintf(service->name, sizeof(service->name), "%s", name);
 
 	service->loop = loop;
@@ -320,9 +363,9 @@ evio_service_init(ev_loop *loop, struct evio_service *service, const char *name,
 	service->on_accept_param = on_accept_param;
 	/*
 	 * Initialize libev objects to be able to detect if they
-	 * are active or not in evio_service_stop().
+	 * are active or not in evio_service_impl_stop().
 	 */
-	ev_init(&service->ev, evio_service_accept_cb);
+	ev_init(&service->ev, evio_service_impl_accept_cb);
 	ev_io_set(&service->ev, -1, 0);
 	service->ev.data = service;
 }
@@ -330,13 +373,12 @@ evio_service_init(ev_loop *loop, struct evio_service *service, const char *name,
 /**
  * Try to bind.
  */
-int
-evio_service_bind(struct evio_service *service, const char *uri)
+static int
+evio_service_impl_bind(struct evio_service_impl *service, const char *uri)
 {
 	struct uri u;
 	if (uri_parse(&u, uri) || u.service == NULL) {
-		diag_set(SocketError, sio_socketname(-1),
-			 "invalid uri for bind: %s", uri);
+		diag_set(IllegalParams, "invalid uri for bind: %s", uri);
 		return -1;
 	}
 
@@ -356,7 +398,7 @@ evio_service_bind(struct evio_service *service, const char *uri)
 		snprintf(un->sun_path, sizeof(un->sun_path), "%s",
 			 service->serv);
 		un->sun_family = AF_UNIX;
-		return evio_service_bind_addr(service);
+		return evio_service_impl_bind_addr(service);
 	}
 
 	/* IP socket */
@@ -376,29 +418,39 @@ evio_service_bind(struct evio_service *service, const char *uri)
 	for (struct addrinfo *ai = res; ai != NULL; ai = ai->ai_next) {
 		memcpy(&service->addr, ai->ai_addr, ai->ai_addrlen);
 		service->addr_len = ai->ai_addrlen;
-		if (evio_service_bind_addr(service) == 0) {
+		if (evio_service_impl_bind_addr(service) == 0) {
 			freeaddrinfo(res);
 			return 0;
 		}
 		say_error("%s: failed to bind on %s: %s",
-			  evio_service_name(service),
+			  evio_service_impl_name(service),
 			  sio_strfaddr(ai->ai_addr, ai->ai_addrlen),
 			  diag_last_error(diag_get())->errmsg);
 	}
 	freeaddrinfo(res);
 	diag_set(SocketError, sio_socketname(-1), "%s: failed to bind",
-		 evio_service_name(service));
+		 evio_service_impl_name(service));
 	return -1;
 }
 
-/** It's safe to stop a service which is not started yet. */
-void
-evio_service_stop(struct evio_service *service)
+static void
+evio_service_impl_detach(struct evio_service_impl *service)
 {
-	say_info("%s: stopped", evio_service_name(service));
+	if (ev_is_active(&service->ev)) {
+		ev_io_stop(service->loop, &service->ev);
+		service->addr_len = 0;
+	}
+	ev_io_set(&service->ev, -1, 0);
+}
+
+/** It's safe to stop a service which is not started yet. */
+static void
+evio_service_impl_stop(struct evio_service_impl *service)
+{
+	say_info("%s: stopped", evio_service_impl_name(service));
 
 	int service_fd = service->ev.fd;
-	evio_service_detach(service);
+	evio_service_impl_detach(service);
 	if (service_fd < 0)
 		return;
 
@@ -414,12 +466,119 @@ evio_service_stop(struct evio_service *service)
 	}
 }
 
+static void
+evio_service_impl_attach(struct evio_service_impl *dst,
+			 const struct evio_service_impl *src)
+{
+	strcpy(dst->host, src->host);
+	strcpy(dst->serv, src->serv);
+	dst->addrstorage = src->addrstorage;
+	dst->addr_len = src->addr_len;
+	ev_io_set(&dst->ev, src->ev.fd, EV_READ);
+}
+
+static inline int
+evio_service_reuse_addr(const char **uris, int size)
+{
+	for (int i = 0; i < size; i++)
+		if (evio_service_impl_reuse_addr(uris[i]) != 0)
+			return -1;
+	return 0;
+}
+
+char **
+evio_service_bound_address(const struct evio_service *service, int *size)
+{
+	*size = service->size;
+	if (service->size == 0)
+		return NULL;
+	char **bound_address_array = (char **)
+		xcalloc(service->size, sizeof(char *) + SERVICE_NAME_MAXLEN);
+	char *dstbuf = (char *)bound_address_array +
+		service->size * sizeof(char *);
+	for (int i = 0; i < service->size; i++) {
+		bound_address_array[i] =
+			dstbuf + i * SERVICE_NAME_MAXLEN;
+		evio_service_impl_bound_address(&service->services[i],
+						bound_address_array[i]);
+	}
+	return bound_address_array;
+}
+
+void
+evio_service_bound_address_free(char **bound_address_array)
+{
+	free(bound_address_array);
+}
+
+void
+evio_service_init(struct ev_loop *loop, struct evio_service *service, int size,
+		  const char *name, evio_accept_f on_accept,
+		  void *on_accept_param)
+{
+	service->services =
+		(size != 0 ? xcalloc(size, sizeof(struct evio_service_impl)) : NULL);
+	service->size = size;
+	for (int i = 0; i < service->size; i++) {
+		evio_service_impl_init(loop, &service->services[i], name,
+				       on_accept, on_accept_param);
+	}
+}
+
+void
+evio_service_attach(struct evio_service *dst, const struct evio_service *src)
+{
+	for (int i = 0; i < src->size; i++)
+		evio_service_impl_attach(&dst->services[i], &src->services[i]);
+	dst->size = src->size;
+}
+
 void
 evio_service_detach(struct evio_service *service)
 {
-	if (ev_is_active(&service->ev)) {
-		ev_io_stop(service->loop, &service->ev);
-		service->addr_len = 0;
+	for (int i = 0; i < service->size; i++)
+		evio_service_impl_detach(&service->services[i]);
+	free(service->services);
+	service->size = 0;
+	service->services = NULL;
+}
+
+bool
+evio_service_is_active(struct evio_service *service)
+{
+	for (int i = 0; i < service->size; i++)
+		if (evio_service_impl_is_active(&service->services[i]))
+			return true;
+	return false;
+}
+
+int
+evio_service_listen(struct evio_service *service)
+{
+	for (int i = 0; i < service->size; i++)
+		if (evio_service_impl_listen(&service->services[i]) != 0)
+			return -1;
+	return 0;
+}
+
+void
+evio_service_stop(struct evio_service *service)
+{
+	for (int i = 0; i < service->size; i++)
+		evio_service_impl_stop(&service->services[i]);
+	free(service->services);
+	service->size = 0;
+	service->services = NULL;
+}
+
+int
+evio_service_bind(struct evio_service *service, const char **uris)
+{
+	if (evio_service_reuse_addr(uris, service->size) != 0)
+		return -1;
+	for (int i = 0; i < service->size; i++) {
+		if (evio_service_impl_bind(&service->services[i], uris[i]) != 0)
+			return -1;
 	}
-	ev_io_set(&service->ev, -1, 0);
+	return 0;
 }

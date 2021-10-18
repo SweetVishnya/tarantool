@@ -634,16 +634,17 @@ coio_recvfrom_timeout(struct ev_io *coio, void *buf, size_t sz, int flags,
 }
 
 static int
-coio_service_on_accept(struct evio_service *evio_service,
+coio_service_on_accept(struct evio_service_impl *evio_service_impl,
 		       int fd, struct sockaddr *addr, socklen_t addrlen)
 {
 	struct coio_service *service = (struct coio_service *)
-			evio_service->on_accept_param;
+			evio_service_impl_accept_param(evio_service_impl);
 
 	/* Set connection name. */
 	char fiber_name[SERVICE_NAME_MAXLEN];
 	snprintf(fiber_name, sizeof(fiber_name),
-		 "%s/%s", evio_service->name, sio_strfaddr(addr, addrlen));
+		 "%s/%s", evio_service_impl_name(evio_service_impl),
+		 sio_strfaddr(addr, addrlen));
 
 	/* Create the worker fiber. */
 	struct fiber *f = fiber_new(fiber_name, service->handler);
@@ -671,18 +672,25 @@ void
 coio_service_init(struct coio_service *service, const char *name,
 		  fiber_func handler, void *handler_param)
 {
-	evio_service_init(loop(), &service->evio_service, name,
+	evio_service_init(loop(), &service->evio_service, 1, name,
 			  coio_service_on_accept, service);
 	service->handler = handler;
 	service->handler_param = handler_param;
 }
 
 void
-coio_service_start(struct evio_service *service, const char *uri)
+coio_service_start(struct coio_service *service, const char *uri)
 {
-	if (evio_service_bind(service, uri) != 0 ||
-	    evio_service_listen(service) != 0)
+	const char *uris[] = { uri };
+	if (evio_service_bind(&service->evio_service, uris) != 0 ||
+	    evio_service_listen(&service->evio_service) != 0)
 		diag_raise();
+}
+
+void
+coio_service_stop(struct coio_service *service)
+{
+	evio_service_stop(&service->evio_service);
 }
 
 void

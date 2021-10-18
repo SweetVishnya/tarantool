@@ -584,9 +584,20 @@ lbox_info_sql(struct lua_State *L)
 static int
 lbox_info_listen(struct lua_State *L)
 {
-	/* NULL is ok, no need to check. */
-	char addrbuf[SERVICE_NAME_MAXLEN];
-	lua_pushstring(L, iproto_bound_address(addrbuf));
+	int size;
+	char **bound_address_array = iproto_bound_address(&size);
+	if (size == 0) {
+		lua_pushstring(L, NULL);
+	} else if (size == 1) {
+		lua_pushstring(L, bound_address_array[0]);
+	} else {
+		lua_createtable(L, size, 0);
+		for (int i = 0; i < size; i++) {
+			lua_pushstring(L, bound_address_array[i]);
+			lua_rawseti(L, -2, i + 1);
+		}
+	}
+	iproto_bound_address_free(bound_address_array);
 	return 1;
 }
 
