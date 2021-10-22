@@ -869,9 +869,14 @@ func_printf(struct sql_context *ctx, int argc, const struct Mem *argv)
 	if (argc < 1 || mem_is_null(&argv[0]))
 		return;
 	if (argc == 1 || !mem_is_str(&argv[0])) {
-		struct Mem *mem = ctx->pOut;
-		if (mem_copy(mem, &argv[0]) != 0 || mem_to_str(mem) != 0)
+		uint32_t size = mem_snprintf(NULL, 0, &argv[0]);
+		char *str = sqlDbMallocRawNN(sql_get(), size + 1);
+		if (str == NULL) {
 			ctx->is_aborted = true;
+			return;
+		}
+		mem_snprintf(str, size + 1, &argv[0]);
+		mem_set_str_allocated(ctx->pOut, str, size);
 		return;
 	}
 	struct PrintfArguments pargs;

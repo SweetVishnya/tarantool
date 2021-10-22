@@ -116,30 +116,51 @@ mem_is_field_compatible(const struct Mem *mem, enum field_type type)
 	return field_mp_plain_type_is_compatible(type, mp_type, true);
 }
 
+int
+mem_snprintf(char *buf, uint32_t size, const struct Mem *mem)
+{
+	switch (mem->type) {
+	case MEM_TYPE_NULL:
+		return snprintf(buf, size, "NULL");
+	case MEM_TYPE_STR:
+	case MEM_TYPE_BIN:
+		return snprintf(buf, size, "%.*s", mem->n, mem->z);
+	case MEM_TYPE_INT:
+		return snprintf(buf, size, "%lld", mem->u.i);
+	case MEM_TYPE_UINT:
+		return snprintf(buf, size, "%llu",
+				(unsigned long long)mem->u.u);
+	case MEM_TYPE_DOUBLE: {
+		char str[BUF_SIZE];
+		sql_snprintf(BUF_SIZE, str, "%!.15g", mem->u.r);
+		return snprintf(buf, size, "%s", str);
+	}
+	case MEM_TYPE_DEC:
+		return snprintf(buf, size, "%s", decimal_str(&mem->u.d));
+	case MEM_TYPE_MAP:
+	case MEM_TYPE_ARRAY:
+		return mp_snprint(buf, size, mem->z);
+	case MEM_TYPE_UUID:
+		return snprintf(buf, size, "%s", tt_uuid_str(&mem->u.uuid));
+	case MEM_TYPE_BOOL:
+		return snprintf(buf, size, "%s", mem->u.b ? "TRUE" : "FALSE");
+	default:
+		return snprintf(buf, size, "unknown");
+	}
+}
+
 const char *
 mem_str(const struct Mem *mem)
 {
-	char buf[STR_VALUE_MAX_LEN];
 	const char *type = mem_type_to_str(mem);
-	switch (mem->type) {
-	case MEM_TYPE_NULL:
-		return "NULL";
-	case MEM_TYPE_STR:
+	if (mem->type == MEM_TYPE_STR) {
 		if (mem->n <= STR_VALUE_MAX_LEN)
 			return tt_sprintf("%s('%.*s')", type, mem->n, mem->z);
 		return tt_sprintf("%s('%.*s...)", type, STR_VALUE_MAX_LEN,
 				  mem->z);
-	case MEM_TYPE_INT:
-		return tt_sprintf("%s(%lld)", type, mem->u.i);
-	case MEM_TYPE_UINT:
-		return tt_sprintf("%s(%llu)", type, mem->u.u);
-	case MEM_TYPE_DOUBLE:
-		sql_snprintf(STR_VALUE_MAX_LEN, buf, "%!.15g", mem->u.r);
-		return tt_sprintf("%s(%s)", type, buf);
-	case MEM_TYPE_DEC:
-		decimal_to_string(&mem->u.d, buf);
-		return tt_sprintf("%s(%s)", type, buf);
-	case MEM_TYPE_BIN: {
+	}
+	char buf[STR_VALUE_MAX_LEN];
+	if (mem->type == MEM_TYPE_BIN) {
 		int len = MIN(mem->n, STR_VALUE_MAX_LEN / 2);
 		for (int i = 0; i < len; ++i) {
 			int n = (mem->z[i] & 0xF0) >> 4;
@@ -151,24 +172,10 @@ mem_str(const struct Mem *mem)
 			return tt_sprintf("%s(x'%.*s...)", type, len * 2, buf);
 		return tt_sprintf("%s(x'%.*s')", type, len * 2, buf);
 	}
-	case MEM_TYPE_MAP:
-	case MEM_TYPE_ARRAY: {
-		const char *str = mp_str(mem->z);
-		uint32_t len = strlen(str);
-		uint32_t minlen = MIN(STR_VALUE_MAX_LEN, len);
-		memcpy(buf, str, minlen);
-		if (len <= STR_VALUE_MAX_LEN)
-			return tt_sprintf("%s(%.*s)", type, minlen, buf);
-		return tt_sprintf("%s(%.*s...)", type, minlen, buf);
-	}
-	case MEM_TYPE_UUID:
-		tt_uuid_to_string(&mem->u.uuid, buf);
+	int size = mem_snprintf(buf, STR_VALUE_MAX_LEN, mem);
+	if (size <= STR_VALUE_MAX_LEN)
 		return tt_sprintf("%s(%s)", type, buf);
-	case MEM_TYPE_BOOL:
-		return tt_sprintf("%s(%s)", type, mem->u.b ? "TRUE" : "FALSE");
-	default:
-		return "unknown";
-	}
+	return tt_sprintf("%s(%.*s...)", type, STR_VALUE_MAX_LEN, buf);
 }
 
 static const char *
