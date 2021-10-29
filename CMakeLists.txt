@@ -200,6 +200,7 @@ if (WITH_JEPSEN)
     ExternalProject_Add(
         jepsen-tests
         GIT_REPOSITORY https://github.com/tarantool/jepsen.tarantool
+        GIT_TAG e27335ba54d512dfde7ed33a1182ad5fa48eb93c
         CONFIGURE_COMMAND ""
         BUILD_COMMAND ""
         INSTALL_COMMAND ""
