@@ -2,8 +2,6 @@ name: jepsen-single-instance-txm
 
 on:
   push:
-    tags:
-      - '*'
   repository_dispatch:
     types: [backend_automation]
   workflow_dispatch:
