@@ -29,6 +29,7 @@ resource "openstack_compute_instance_v2" "instance" {
     inline = [
       "set -o errexit",
       "sudo hostnamectl set-hostname n${count.index + 1}",
+      "cat -n /etc/apt/sources.list",
       "sudo apt-get -o Debug::Acquire::http=true -o Debug::pkgAcquire::Worker=1 update"
     ]
   }
