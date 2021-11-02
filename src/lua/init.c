@@ -36,7 +36,6 @@
 #endif
 
 #include <lua.h>
-#include <stdio.h>
 #include <lauxlib.h>
 #include <lualib.h>
 #include <lj_cdata.h>
@@ -46,8 +45,6 @@
 #include "version.h"
 #include "backtrace.h"
 #include "coio.h"
-#include <stdio.h>
-#include "cfg.h"
 #include "lua/fiber.h"
 #include "lua/fiber_cond.h"
 #include "lua/fiber_channel.h"
@@ -650,16 +647,10 @@ run_script_f(va_list ap)
 		is_a_tty = inj->iparam;
 	});
 
-        /*
-	int background = 0;
-	lua_getglobal(L, "box");
-        if (lua_isnil(L, -1)) {
-            lua_getfield(L, -1, "cfg");
-            if (lua_istable(L, -1)) {
-                    background = cfg_geti("background");
-            }
-        }
-        */
+        const char *env = getenv("TT_BACKGROUND");
+        int background = 0;
+        if (env)
+                background = (strcmp(env, "true") == 0 ? 1 : 0);
 
 	if (path && strcmp(path, "-") != 0 && access(path, F_OK) == 0) {
 		/* Execute script. */
@@ -667,15 +658,9 @@ run_script_f(va_list ap)
 			goto luajit_error;
 		if (lua_main(L, argc, argv) != 0)
 			goto error;
-	} else if (!is_a_tty || (path && strcmp(path, "-") == 0)) {
+	} else if ((!is_a_tty || (path && strcmp(path, "-") == 0)) && !background) {
 		/* Execute stdin */
 		if (luaL_loadfile(L, NULL) != 0)
-			goto luajit_error;
-		if (lua_main(L, argc, argv) != 0)
-			goto error;
-	} else if (is_option_e_ran) {
-                /* Execute a string passed with option -e */
-		if (luaL_loadstring(L, "print()") != 0)
 			goto luajit_error;
 		if (lua_main(L, argc, argv) != 0)
 			goto error;
