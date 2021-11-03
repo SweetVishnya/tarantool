@@ -317,19 +317,23 @@ int
 evio_service_bind(struct evio_service *service, const char *uri)
 {
 	struct uri u;
-	if (uri_parse(&u, uri) || u.service == NULL) {
+	if (uri_create(&u, uri) || u.service == NULL) {
+		uri_destroy(&u);
 		diag_set(SocketError, sio_socketname(-1),
 			 "invalid uri for bind: %s", uri);
 		return -1;
 	}
-
-	snprintf(service->serv, sizeof(service->serv), "%.*s",
-		 (int) u.service_len, u.service);
-	if (u.host != NULL && strncmp(u.host, "*", u.host_len) != 0) {
-		snprintf(service->host, sizeof(service->host), "%.*s",
-			(int) u.host_len, u.host);
+	service->serv[0] = service->host[0] = '\0';
+	if (u.service != NULL) {
+		snprintf(service->serv, sizeof(service->serv), "%s",
+			 u.service);
+	}
+	if (u.host != NULL && strcmp(u.host, "*") != 0) {
+		snprintf(service->host, sizeof(service->host), "%s",
+			u.host);
 	} /* else { service->host[0] = '\0'; } */
 
+	uri_destroy(&u);
 	assert(! ev_is_active(&service->ev));
 
 	if (strcmp(service->host, URI_HOST_UNIX) == 0) {
