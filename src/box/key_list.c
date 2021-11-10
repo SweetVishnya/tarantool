@@ -41,6 +41,40 @@
 #include "schema.h"
 #include "tt_static.h"
 
+
+void testtest()
+{
+	static char buf[256];
+	char *e = buf;
+	e = mp_encode_array(e, 2);
+	e = mp_encode_uint(e, 1);
+	e = mp_encode_str(e, "hello world!", 4);
+	struct port out_port, in_port;
+	port_c_create(&in_port);
+	port_c_add_mp(&in_port, buf, e);
+	struct func *f = func_by_name("cons_tuple", 10);
+	int rc = func_call(f, &in_port, &out_port);
+	port_destroy(&in_port);
+
+	printf("rc = %d\n", rc);
+	if (rc != 0) {
+		port_destroy(&out_port);
+		return;
+	}
+
+	uint32_t data_size;
+	const char *data = port_get_msgpack(&out_port, &data_size);
+	while (data_size > 0) {
+		rc = mp_snprint(buf, sizeof(buf), data);
+		printf("result %u %d %s\n", data_size, rc, buf);
+		const char *tmp = data;
+		mp_next(&data);
+		data_size -= data - tmp;
+	}
+
+	port_destroy(&out_port);
+}
+
 int
 key_list_iterator_create(struct key_list_iterator *it, struct tuple *tuple,
 			 struct index_def *index_def, bool validate,
