@@ -96,6 +96,9 @@ histogram_percentile(struct histogram *hist, int pct);
 int64_t
 histogram_percentile_lower(struct histogram *hist, int pct);
 
+int64_t
+histogram_max(struct histogram *hist);
+
 /**
  * Print string representation of a histogram.
  */

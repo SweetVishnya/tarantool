@@ -36,6 +36,7 @@
 #include "space.h"
 
 #include "small/rlist.h"
+#include "tx_stat.h"
 
 #if defined(__cplusplus)
 extern "C" {
@@ -104,6 +105,8 @@ struct memtx_story_link {
  * All stories are linked into a list of stories of the same key of each index.
  */
 struct memtx_story {
+	int status;
+	bool is_pinned;
 	/** The story is about this tuple. The tuple is referenced. */
 	struct tuple *tuple;
 	/**
@@ -166,6 +169,15 @@ struct memtx_story {
 struct memtx_tx_snapshot_cleaner {
 	struct mh_snapshot_cleaner_t *ht;
 };
+
+struct memtx_tx_stat_manager;
+
+struct memtx_tx_stat_manager *
+memtx_tx_stat_get();
+
+
+struct tx_stat_manager *
+memtx_tx_stat_get_txn_stat_manager();
 
 void
 memtx_tx_register_tx(struct txn *tx);

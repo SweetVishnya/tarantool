@@ -380,6 +380,8 @@ struct txn {
 	struct engine *engine;
 	/** Engine-specific transaction data */
 	void *engine_tx;
+	/** Information for trnsaction manager about the txn's allocations */
+	struct txn_mem_used *mem_used;
 	/* A fiber to wake up when transaction is finished. */
 	struct fiber *fiber;
 	/** Timestampt of entry write start. */

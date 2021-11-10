@@ -1,0 +1,7 @@
+TAP version 13
+1..1
+# Started on Wed Nov 10 20:46:29 2021
+# Starting group: txm
+{ ["USER DATA"] = { ["max"] = 0,["avg"] = 0,["total"] = 0, } ,["TRIGGERS"] = { ["max"] = 0,["avg"] = 0,["total"] = 0, } ,["STORIES"] = { ["POTENTIALLY IN READ VIEW"] = { ["total"] = 384, } ,["USED BY ACTIVE TXNS"] = { ["total"] = 1392, } ,["GARBAGE"] = { ["total"] = 0, } ,["USED TO TRACK GAP"] = { ["total"] = 0, } , } ,["STATEMENTS"] = { ["max"] = 0,["avg"] = 0,["total"] = 0, } ,["TUPLE PINNED"] = { ["POTENTIALLY IN READ VIEW"] = { ["total"] = 0,["count"] = 0, } ,["USED BY ACTIVE TXNS"] = { ["total"] = 0,["count"] = 0, } ,["GARBAGE"] = { ["total"] = 0,["count"] = 0, } ,["USED TO TRACK GAP"] = { ["total"] = 0,["count"] = 0, } , } ,["SAVEPOINTS"] = { ["max"] = 0,["avg"] = 0,["total"] = 0, } ,["TRACKERS"] = { ["max"] = 0,["avg"] = 0,["total"] = 0, } ,["LOGS"] = { ["max"] = 0,["avg"] = 0,["total"] = 0, } , } 
+ok     1	txm.test_txm_mem
+# Ran 1 tests in 0.347 seconds, 1 success, 0 failures

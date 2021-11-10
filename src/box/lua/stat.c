@@ -43,6 +43,8 @@
 #include "box/engine.h"
 #include "box/vinyl.h"
 #include "box/sql.h"
+#include "box/memtx_tx_stat.h"
+#include "box/memtx_tx.h"
 #include "info/info.h"
 #include "lua/info.h"
 #include "lua/utils.h"
@@ -279,6 +281,95 @@ lbox_stat_sql(struct lua_State *L)
 	return 1;
 }
 
+static void
+fill_tx_alloc_stat_item(struct lua_State *L, uint64_t total, uint64_t max,
+		  uint64_t avg)
+{
+	lua_pushstring(L, "total");
+	lua_pushnumber(L, total);
+	lua_settable(L, -3);
+
+	lua_pushstring(L, "max");
+	lua_pushnumber(L, max);
+	lua_settable(L, -3);
+
+	lua_pushstring(L, "avg");
+	lua_pushnumber(L, avg);
+	lua_settable(L, -3);
+}
+
+static int
+set_tx_alloc_stat_item(struct lua_State *L, const char *name, uint64_t total,
+		 uint64_t max, uint64_t avg)
+{
+
+	lua_pushstring(L, name);
+	lua_newtable(L);
+
+	fill_tx_alloc_stat_item(L, total, max, avg);
+
+	lua_settable(L, -3);
+
+	return 0;
+}
+
+static int
+lbox_stat_tx_index(struct lua_State *L)
+{
+	(void)L;
+	abort();
+}
+
+static int
+lbox_stat_tx_call(struct lua_State *L)
+{
+	struct memtx_tx_stats stats;
+	memtx_tx_stat_get_stats(memtx_tx_stat_get(), &stats);
+	for (size_t i = 0; i < TXN_ALLOC_MAX; ++i) {
+		set_tx_alloc_stat_item(L, TXN_ALLOC_TYPE_STRS[i], stats.total[i],
+				 stats.max[i], stats.avg[i]);
+	}
+	for (size_t i = MEMTX_TX_ALLOC_MIN + 1; i < MEMTX_TX_ALLOC_MAX; ++i) {
+		set_tx_alloc_stat_item(L, MEMTX_TX_ALLOC_TYPE_STRS[i], stats.total[i],
+				       stats.max[i], stats.avg[i]);
+	}
+
+	lua_pushstring(L, "TUPLE PINNED");
+	lua_newtable(L);
+	for (size_t i = 0; i < MEMTX_TX_PIN_MAX; ++i) {
+		lua_pushstring(L, MEMTX_TX_PIN_TYPE_STRS[i]);
+		lua_newtable(L);
+
+		lua_pushstring(L, "total");
+		lua_pushnumber(L, stats.pinned_tuples_total[i]);
+		lua_settable(L, -3);
+		lua_pushstring(L, "count");
+		lua_pushnumber(L, stats.pinned_tuples_count[i]);
+		lua_settable(L, -3);
+
+		lua_settable(L, -3);
+	}
+
+	lua_settable(L, -3);
+
+	lua_pushstring(L, "STORIES");
+	lua_newtable(L);
+	for (size_t i = 0; i < MEMTX_TX_PIN_MAX; ++i) {
+		lua_pushstring(L, MEMTX_TX_PIN_TYPE_STRS[i]);
+		lua_newtable(L);
+
+		lua_pushstring(L, "total");
+		lua_pushnumber(L, stats.stories_total[i]);
+		lua_settable(L, -3);
+
+		lua_settable(L, -3);
+	}
+
+	lua_settable(L, -3);
+
+	return 1;
+}
+
 static const struct luaL_Reg lbox_stat_meta [] = {
 	{"__index", lbox_stat_index},
 	{"__call",  lbox_stat_call},
@@ -294,6 +385,12 @@ static const struct luaL_Reg lbox_stat_net_meta [] = {
 static const struct luaL_Reg lbox_stat_net_thread_meta [] = {
 	{"__index", lbox_stat_net_thread_index},
 	{"__call",  lbox_stat_net_thread_call},
+	{NULL, NULL}
+};
+
+static const struct luaL_Reg lbox_stat_tx_meta [] = {
+	{"__index", lbox_stat_tx_index},
+	{"__call",  lbox_stat_tx_call},
 	{NULL, NULL}
 };
 
@@ -332,5 +429,17 @@ box_lua_stat_init(struct lua_State *L)
 	luaL_register(L, NULL, lbox_stat_net_thread_meta);
 	lua_setmetatable(L, -2);
 	lua_pop(L, 1); /* stat net module */
+
+	static const struct luaL_Reg txstatlib [] = {
+		{NULL, NULL}
+	};
+
+	luaL_register_module(L, "box.stat.tx", txstatlib);
+
+	lua_newtable(L);
+	luaL_register(L, NULL, lbox_stat_tx_meta);
+	lua_setmetatable(L, -2);
+	lua_pop(L, 1); /* stat tx module */
+
 }
 

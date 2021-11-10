@@ -1,0 +1,337 @@
+-- test-run result file version 2
+env = require('test_run')
+ | ---
+ | ...
+test_run = env.new()
+ | ---
+ | ...
+test_run:cmd("create server mvcc_mem with script='box/mvcc-mem.lua'")
+ | ---
+ | - true
+ | ...
+test_run:cmd("start server mvcc_mem")
+ | ---
+ | - true
+ | ...
+test_run:cmd("switch mvcc_mem")
+ | ---
+ | - true
+ | ...
+
+txn_proxy = require('txn_proxy')
+ | ---
+ | ...
+tx1 = txn_proxy.new()
+ | ---
+ | ...
+tx2 = txn_proxy.new()
+ | ---
+ | ...
+tx3 = txn_proxy.new()
+ | ---
+ | ...
+
+box.stat.tx()
+ | ---
+ | - USER DATA:
+ |     max: 0
+ |     avg: 0
+ |     total: 0
+ |   TRIGGERS:
+ |     max: 0
+ |     avg: 0
+ |     total: 0
+ |   STORIES:
+ |     POTENTIALLY IN READ VIEW:
+ |       total: 232
+ |     USED BY ACTIVE TXNS:
+ |       total: 1736
+ |     GARBAGE:
+ |       total: 0
+ |     USED TO TRACK GAP:
+ |       total: 0
+ |   STATEMENTS:
+ |     max: 0
+ |     avg: 0
+ |     total: 0
+ |   TUPLE PINNED:
+ |     POTENTIALLY IN READ VIEW:
+ |       count: 0
+ |       total: 0
+ |     USED BY ACTIVE TXNS:
+ |       count: 0
+ |       total: 0
+ |     GARBAGE:
+ |       count: 0
+ |       total: 0
+ |     USED TO TRACK GAP:
+ |       count: 0
+ |       total: 0
+ |   SAVEPOINTS:
+ |     max: 0
+ |     avg: 0
+ |     total: 0
+ |   TRACKERS:
+ |     max: 0
+ |     avg: 0
+ |     total: 0
+ |   LOGS:
+ |     max: 0
+ |     avg: 0
+ |     total: 0
+ | ...
+
+s = box.schema.space.create('test')
+ | ---
+ | ...
+_ = s:create_index('pk')
+ | ---
+ | ...
+
+tx1:begin()
+ | ---
+ | - 
+ | ...
+tx1('s:replace{1, 1}')
+ | ---
+ | - - [1, 1]
+ | ...
+box.stat.tx()
+ | ---
+ | - USER DATA:
+ |     max: 0
+ |     avg: 0
+ |     total: 0
+ |   TRIGGERS:
+ |     max: 0
+ |     avg: 0
+ |     total: 0
+ |   STORIES:
+ |     POTENTIALLY IN READ VIEW:
+ |       total: 424
+ |     USED BY ACTIVE TXNS:
+ |       total: 616
+ |     GARBAGE:
+ |       total: 0
+ |     USED TO TRACK GAP:
+ |       total: 0
+ |   STATEMENTS:
+ |     max: 0
+ |     avg: 0
+ |     total: 120
+ |   TUPLE PINNED:
+ |     POTENTIALLY IN READ VIEW:
+ |       count: 0
+ |       total: 0
+ |     USED BY ACTIVE TXNS:
+ |       count: 0
+ |       total: 0
+ |     GARBAGE:
+ |       count: 0
+ |       total: 0
+ |     USED TO TRACK GAP:
+ |       count: 0
+ |       total: 0
+ |   SAVEPOINTS:
+ |     max: 0
+ |     avg: 0
+ |     total: 0
+ |   TRACKERS:
+ |     max: 0
+ |     avg: 0
+ |     total: 0
+ |   LOGS:
+ |     max: 0
+ |     avg: 0
+ |     total: 0
+ | ...
+tx2:begin()
+ | ---
+ | - 
+ | ...
+tx2('s:replace{2, 2}')
+ | ---
+ | - - [2, 2]
+ | ...
+tx2('s:replace{1, 2}')
+ | ---
+ | - - [1, 2]
+ | ...
+-- Pin a tuple
+box.stat.tx()
+ | ---
+ | - USER DATA:
+ |     max: 0
+ |     avg: 0
+ |     total: 0
+ |   TRIGGERS:
+ |     max: 0
+ |     avg: 0
+ |     total: 0
+ |   STORIES:
+ |     POTENTIALLY IN READ VIEW:
+ |       total: 192
+ |     USED BY ACTIVE TXNS:
+ |       total: 920
+ |     GARBAGE:
+ |       total: 0
+ |     USED TO TRACK GAP:
+ |       total: 0
+ |   STATEMENTS:
+ |     max: 0
+ |     avg: 0
+ |     total: 360
+ |   TUPLE PINNED:
+ |     POTENTIALLY IN READ VIEW:
+ |       count: 0
+ |       total: 0
+ |     USED BY ACTIVE TXNS:
+ |       count: 1
+ |       total: 9
+ |     GARBAGE:
+ |       count: 0
+ |       total: 0
+ |     USED TO TRACK GAP:
+ |       count: 0
+ |       total: 0
+ |   SAVEPOINTS:
+ |     max: 0
+ |     avg: 0
+ |     total: 0
+ |   TRACKERS:
+ |     max: 0
+ |     avg: 0
+ |     total: 0
+ |   LOGS:
+ |     max: 0
+ |     avg: 0
+ |     total: 0
+ | ...
+tx1:commit()
+ | ---
+ | - 
+ | ...
+tx2:commit()
+ | ---
+ | - 
+ | ...
+box.stat.tx()
+ | ---
+ | - USER DATA:
+ |     max: 0
+ |     avg: 0
+ |     total: 0
+ |   TRIGGERS:
+ |     max: 0
+ |     avg: 0
+ |     total: 0
+ |   STORIES:
+ |     POTENTIALLY IN READ VIEW:
+ |       total: 192
+ |     USED BY ACTIVE TXNS:
+ |       total: 920
+ |     GARBAGE:
+ |       total: 0
+ |     USED TO TRACK GAP:
+ |       total: 0
+ |   STATEMENTS:
+ |     max: 0
+ |     avg: 0
+ |     total: 0
+ |   TUPLE PINNED:
+ |     POTENTIALLY IN READ VIEW:
+ |       count: 0
+ |       total: 0
+ |     USED BY ACTIVE TXNS:
+ |       count: 1
+ |       total: 9
+ |     GARBAGE:
+ |       count: 0
+ |       total: 0
+ |     USED TO TRACK GAP:
+ |       count: 0
+ |       total: 0
+ |   SAVEPOINTS:
+ |     max: 0
+ |     avg: 0
+ |     total: 0
+ |   TRACKERS:
+ |     max: 0
+ |     avg: 0
+ |     total: 0
+ |   LOGS:
+ |     max: 0
+ |     avg: 0
+ |     total: 0
+ | ...
+-- Make GC delete pinned tuple
+s:replace{3, 3}
+ | ---
+ | - [3, 3]
+ | ...
+s:replace{4, 4}
+ | ---
+ | - [4, 4]
+ | ...
+box.stat.tx()
+ | ---
+ | - USER DATA:
+ |     max: 0
+ |     avg: 0
+ |     total: 0
+ |   TRIGGERS:
+ |     max: 0
+ |     avg: 0
+ |     total: 0
+ |   STORIES:
+ |     POTENTIALLY IN READ VIEW:
+ |       total: 0
+ |     USED BY ACTIVE TXNS:
+ |       total: 608
+ |     GARBAGE:
+ |       total: 0
+ |     USED TO TRACK GAP:
+ |       total: 0
+ |   STATEMENTS:
+ |     max: 0
+ |     avg: 0
+ |     total: 0
+ |   TUPLE PINNED:
+ |     POTENTIALLY IN READ VIEW:
+ |       count: 0
+ |       total: 0
+ |     USED BY ACTIVE TXNS:
+ |       count: 0
+ |       total: 0
+ |     GARBAGE:
+ |       count: 0
+ |       total: 0
+ |     USED TO TRACK GAP:
+ |       count: 0
+ |       total: 0
+ |   SAVEPOINTS:
+ |     max: 0
+ |     avg: 0
+ |     total: 0
+ |   TRACKERS:
+ |     max: 0
+ |     avg: 0
+ |     total: 0
+ |   LOGS:
+ |     max: 0
+ |     avg: 0
+ |     total: 0
+ | ...
+
+test_run:cmd("switch default")
+ | ---
+ | - true
+ | ...
+test_run:cmd("stop server mvcc_mem")
+ | ---
+ | - true
+ | ...
+test_run:cmd("cleanup server mvcc_mem")
+ | ---
+ | - true
+ | ...
