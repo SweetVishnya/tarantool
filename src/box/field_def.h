@@ -144,6 +144,10 @@ struct field_def {
 	char *default_value;
 	/** AST for parsed default value. */
 	struct Expr *default_value_expr;
+	/** Number of constraints. */
+	uint32_t constraint_count;
+	/** Array of constraints. Can be NULL if constraints_count == 0. */
+	struct tuple_constraint *constraint;
 };
 
 /**

@@ -90,6 +90,7 @@ add_library(tuple STATIC
     tuple.c
     field_map.c
     tuple_format.c
+    tuple_constraint.c
     xrow_update.c
     xrow_update_field.c
     xrow_update_array.c

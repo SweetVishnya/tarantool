@@ -57,6 +57,7 @@
 #include "sequence.h"
 #include "sql.h"
 #include "constraint_id.h"
+#include "tuple_constraint.h"
 
 /* {{{ Auxiliary functions and methods. */
 
@@ -401,6 +402,39 @@ space_opts_decode(struct space_opts *opts, const char *map,
 }
 
 /**
+ * Constraint check function that calls func_call() internally.
+ */
+static int
+constraint_func(const struct tuple_constraint *constraint,
+		const char *mp_data, const char *mp_data_end)
+{
+	struct port out_port, in_port;
+	port_c_create(&in_port);
+	port_c_add_mp(&in_port, mp_data, mp_data_end);
+	struct func *f = constraint->func_ctx;
+	int rc = func_call(f, &in_port, &out_port);
+	port_destroy(&in_port);
+	port_destroy(&out_port);
+
+	printf("rc = %d\n", rc);
+	if (rc != 0) {
+		return -1;
+	}
+
+	uint32_t data_size;
+	const char *data = port_get_msgpack(&out_port, &data_size);
+	while (data_size > 0) {
+		rc = mp_snprint(buf, sizeof(buf), data);
+		printf("result %u %d %s\n", data_size, rc, buf);
+		const char *tmp = data;
+		mp_next(&data);
+		data_size -= data - tmp;
+	}
+
+	port_destroy(&out_port);
+}
+
+/**
  * Decode field definition from MessagePack map. Format:
  * {name: <string>, type: <string>}. Type is optional.
  * @param[out] field Field to decode to.
@@ -508,6 +542,11 @@ field_def_decode(struct field_def *field, const char **data,
 							     strlen(dv));
 		if (field->default_value_expr == NULL)
 			return -1;
+	}
+
+	for (uint32_t i = 0; i < field->constraint_count; i++) {
+		struct tuple_constraint *c = &field->constraint[i];
+
 	}
 	return 0;
 }

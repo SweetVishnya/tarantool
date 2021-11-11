@@ -411,6 +411,52 @@ local function update_format(format)
                             "was not found by name '" .. v .. "'")
                     end
                     field[k] = coll.id
+                elseif k == 'constraint' and type(v) == 'string' then
+                    -- {..., constraint = "func_name"}
+                    local found = box.space._func.index.name:get{v}
+                    if not found then
+                        box.error(box.error.ILLEGAL_PARAMS,
+                            "format[" .. i .. "]: constraint function " ..
+                            "was not found by name '" .. v .. "'")
+                    end
+                    field[k] = {[v] = v}
+                elseif k == 'constraint' and type(v) == 'table' then
+                    -- {..., constraint = {func_name1, name2 = func_name2, ...}}
+                    local constraint = {}
+                    local is_not_empty = false
+                    for con_key,con_func in pairs(v) do
+                        if type(con_func) ~= 'string' then
+                            box.error(box.error.ILLEGAL_PARAMS,
+                                "format[" .. i .. "]: constraint function " ..
+                                "is expected to be a string, " ..
+                                "but got " .. type(con_func))
+                        end
+                        local found = box.space._func.index.name:get{con_func}
+                        if not found then
+                            box.error(box.error.ILLEGAL_PARAMS,
+                                "format[" .. i .. "]: constraint function " ..
+                                "was not found by name '" .. con_func .. "'")
+                        end
+                        local con_name = nil
+                        if type(con_key) == 'number' then
+                            con_name = con_func
+                        elseif type(con_key) == 'string' then
+                            con_name = con_key
+                        else
+                            box.error(box.error.ILLEGAL_PARAMS,
+                                "format[" .. i .. "]: constraint name " ..
+                                "is expected to be a string, " ..
+                                "but got " .. type(con_key))
+                        end
+                        constraint[con_name] = con_func
+                        is_not_empty = true
+                    end
+                    if is_not_empty then
+                        field[k] = constraint
+                    end
+                elseif k == 'constraint' then
+                    box.error(box.error.ILLEGAL_PARAMS,
+                        "format[" .. i .. "]: constraint must be string or table")
                 else
                     field[k] = v
                 end

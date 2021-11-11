@@ -28,11 +28,12 @@
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
+#include "tuple_format.h"
 #include "bit/bit.h"
 #include "fiber.h"
 #include "json/json.h"
-#include "tuple_format.h"
 #include "coll_id_cache.h"
+#include "tuple_constraint.h"
 #include "tt_static.h"
 
 #include <PMurHash.h>
@@ -155,6 +156,8 @@ tuple_field_new(void)
 	field->coll_id = COLL_NONE;
 	field->nullable_action = ON_CONFLICT_ACTION_NONE;
 	field->multikey_required_fields = NULL;
+	field->constraint_count = 0;
+	field->constraint = NULL;
 	return field;
 }
 
@@ -162,6 +165,7 @@ static void
 tuple_field_delete(struct tuple_field *field)
 {
 	free(field->multikey_required_fields);
+	free(field->constraint);
 	free(field);
 }
 
@@ -462,6 +466,11 @@ tuple_format_create(struct tuple_format *format, struct key_def * const *keys,
 		}
 		field->coll = coll;
 		field->coll_id = cid;
+
+		field->constraint_count = fields[i].constraint_count;
+		field->constraint =
+			tuple_constraint_collocate(fields[i].constraint,
+						   fields[i].constraint_count);
 	}
 
 	int current_slot = 0;
