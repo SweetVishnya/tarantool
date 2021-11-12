@@ -96,6 +96,25 @@ uri_set_destroy(struct uri_set *uri_set);
 int
 uri_set_add_uris(struct uri_set *uri_set, const char *str);
 
+/**
+ * Add URI query param with @a name and @value to all URIs in @a uri_set.
+ */
+void
+uri_set_add_param(struct uri_set *uri_set, const char *name, const char *val);
+
+/**
+ * Add URI query params from @a str to all URIs in @a uri_str.
+ * Params in @a str separated by '&'.
+ */
+void
+uri_set_add_params(struct uri_set *uri_set, const char *str);
+
+/**
+ * Merge all URIs from @a src to @a dst uri_set.
+ */
+void
+uri_set_merge(struct uri_set *dst, const struct uri_set *src);
+
 int
 uri_format(char *str, int len, const struct uri *uri, bool write_password);
 

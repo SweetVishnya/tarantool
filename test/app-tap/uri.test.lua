@@ -211,10 +211,58 @@ local function test_parse_uri_set_with_query_params(test)
     test:isnil(u, "invalid uri", u)
 end
 
+local function test_parse_uri_set_from_lua_table(test)
+    -- Tests for uri.parse_set() Lua bindings.
+    -- (Several URIs with query parameters, passed in different ways).
+    test:plan(26)
+
+    local uri_set
+
+    -- Array with one string address and one query parameter
+    uri_set = uri.parse_set({"/tmp/unix.sock?q1=v1"})
+    test:is(#uri_set, 1, "uri count")
+    test:is(uri_set[1].host, 'unix/', 'host')
+    test:is(uri_set[1].service, '/tmp/unix.sock', 'service')
+    test:is(uri_set[1].unix, '/tmp/unix.sock', 'unix')
+    test:is(type(uri_set[1].params["q1"]), "table", "name")
+    test:is(#uri_set[1].params["q1"], 1, "value count")
+    test:is(uri_set[1].params["q1"][1], "v1", "param value")
+
+    -- Array with one string address and several query parameters.
+    -- One of them passed in URI string, one separately as a string,
+    -- one separately as a table with two values. Also several parameters
+    -- are passed in the table "params" as string and as table.
+    uri_set = uri.parse_set({
+        "/tmp/unix.sock?q1=v1", q2="v2", q3={"v31", "v32"},
+        params = {q3 = "v33", q4 = {"v41", "v42"}}
+    })
+    test:is(#uri_set, 1, "uri count")
+    test:is(uri_set[1].host, 'unix/', 'host')
+    test:is(uri_set[1].service, '/tmp/unix.sock', 'service')
+    test:is(uri_set[1].unix, '/tmp/unix.sock', 'unix')
+    test:is(type(uri_set[1].params["q1"]), "table", "name")
+    test:is(#uri_set[1].params["q1"], 1, "value count")
+    test:is(uri_set[1].params["q1"][1], "v1", "param value")
+    test:is(type(uri_set[1].params["q2"]), "table", "name")
+    test:is(#uri_set[1].params["q2"], 1, "value count")
+    test:is(uri_set[1].params["q2"][1], "v2", "param value")
+    test:is(type(uri_set[1].params["q3"]), "table", "name")
+    test:is(#uri_set[1].params["q3"], 3, "value count")
+    -- First we add values from "params" table.
+    test:is(uri_set[1].params["q3"][1], "v33", "param value")
+    test:is(uri_set[1].params["q3"][2], "v31", "param value")
+    test:is(uri_set[1].params["q3"][3], "v32", "param value")
+    test:is(type(uri_set[1].params["q4"]), "table", "name")
+    test:is(#uri_set[1].params["q4"], 2, "value count")
+    test:is(uri_set[1].params["q4"][1], "v41", "param value")
+    test:is(uri_set[1].params["q4"][2], "v42", "param value")
+end
+
 tap.test("uri", function(test)
-    test:plan(4)
+    test:plan(5)
     test:test("parse", test_parse)
     test:test("parse URI query params", test_parse_uri_query_params)
     test:test("parse URIs with query params", test_parse_uri_set_with_query_params)
+    test:test("parse URIs from lua table", test_parse_uri_set_from_lua_table)
     test:test("format", test_format)
 end)

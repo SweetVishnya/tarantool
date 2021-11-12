@@ -2,6 +2,7 @@
 
 local ffi = require('ffi')
 local buffer = require('buffer')
+local uri = require('uri')
 
 ffi.cdef[[
 struct uri_query_param {
@@ -41,9 +42,6 @@ uri_create(struct uri *uri, const char *str);
 
 void
 uri_destroy(struct uri *uri);
-
-int
-uri_set_create(struct uri_set *uri_set, const char *str);
 
 void
 uri_set_destroy(struct uri_set *uri_set);
@@ -110,7 +108,7 @@ local function parse_set(str)
         error("Usage: uri.parse(string)")
     end
     local uri_set_buf = uri_set_stash_take()
-    if builtin.uri_set_create(uri_set_buf, str) ~= 0 then
+    if uri.create(uri_set_buf, str) ~= 0 then
         uri_set_stash_put(uri_set_buf)
         return nil
     end

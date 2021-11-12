@@ -8,6 +8,7 @@
 #include "trivia/util.h"
 
 #define XSTRNDUP(s, n)  (s != NULL ? xstrndup(s, n) : NULL)
+#define XSTRDUP(s) (s != NULL ? xstrdup(s) : NULL);
 
 /**
  * Find URI query parameter by its @a name in @a uri structure.
@@ -31,6 +32,14 @@ uri_query_param_add_value(struct uri_query_param *param, const char *value)
 	size_t size = (param->value_count + 1) * sizeof(char *);
 	param->values = xrealloc(param->values, size);
 	param->values[param->value_count++] = xstrdup(value);
+}
+
+static void
+uri_query_param_dup(struct uri_query_param *dst,
+			  const struct uri_query_param *src)
+{
+	for (int i = 0; i < src->value_count; i++)
+		uri_query_param_add_value(dst, src->values[i]);
 }
 
 /**
@@ -69,6 +78,18 @@ uri_add_query_param(struct uri *uri, const char *name)
 	struct uri_query_param *param = &uri->params[uri->param_count++];
 	uri_query_param_create(param, name);
 	return param;
+}
+
+static void
+uri_dup_query_params(struct uri *dst, const struct uri *src)
+{
+	dst->params = NULL;
+	dst->param_count = 0;
+	for (int i = 0; i < src->param_count; i++) {
+		struct uri_query_param *param =
+			uri_add_query_param(dst, src->params[i].name);
+		uri_query_param_dup(param, &src->params[i]);
+	}
 }
 
 /**
@@ -114,6 +135,21 @@ uri_create_query_params(struct uri *uri, const char *query)
 			uri_query_param_add_value(param, value);
 	}
 	free(copy);
+}
+
+static void
+uri_dup(struct uri *dst, const struct uri *src)
+{
+	dst->scheme = XSTRDUP(src->scheme);
+	dst->login = XSTRDUP(src->login);
+	dst->password = XSTRDUP(src->password);
+	dst->host = XSTRDUP(src->host);
+	dst->service = XSTRDUP(src->service);
+	dst->path = XSTRDUP(src->path);
+	dst->query = XSTRDUP(src->query);
+	dst->fragment = XSTRDUP(src->fragment);
+	dst->host_hint = src->host_hint;
+	uri_dup_query_params(dst, src);
 }
 
 void
@@ -253,4 +289,33 @@ fail:
 		uri_set->uris = 0;
 	}
 	return -1;
+}
+
+void
+uri_set_add_param(struct uri_set *uri_set, const char *name, const char *val)
+{
+	for (int i = 0; i < uri_set->uri_count; i++) {
+		struct uri_query_param *param =
+			uri_find_query_param(&uri_set->uris[i], name);
+		if (param == NULL)
+			param = uri_add_query_param(&uri_set->uris[i], name);
+		uri_query_param_add_value(param, val);
+	}
+}
+
+void
+uri_set_add_params(struct uri_set *uri_set, const char *str)
+{
+	for (int i = 0; i < uri_set->uri_count; i++)
+		uri_create_query_params(&uri_set->uris[i], str);
+}
+
+void
+uri_set_merge(struct uri_set *dst, const struct uri_set *src)
+{
+	int pos = dst->uri_count;
+	dst->uri_count += src->uri_count;
+	dst->uris = xrealloc(dst->uris, (dst->uri_count) * sizeof(struct uri));
+	for (int i = 0; i < src->uri_count; i++, pos++)
+		uri_dup(&dst->uris[pos], &src->uris[i]);
 }
