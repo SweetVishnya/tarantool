@@ -4,7 +4,7 @@
 #include "coio_task.h"
 #include "fio.h"
 #include "unit.h"
-#include "unit.h"
+#include "test_iostream.h"
 
 int
 touch_f(va_list ap)
@@ -116,6 +116,82 @@ test_getaddrinfo(void)
 }
 
 static int
+test_read_f(va_list ap)
+{
+	struct iostream *io = va_arg(ap, struct iostream *);
+	char buf[5];
+	int rc = coio_read(io, buf, sizeof(buf));
+	if (rc < (ssize_t)sizeof(buf))
+		return -1;
+	return 0;
+}
+
+static int
+test_write_f(va_list ap)
+{
+	struct iostream *io = va_arg(ap, struct iostream *);
+	const char str[] = "test";
+	int rc = coio_write_timeout(io, str, sizeof(str), TIMEOUT_INFINITY);
+	if (rc < (ssize_t)sizeof(str))
+		return -1;
+	return 0;
+}
+
+static int
+test_writev_f(va_list ap)
+{
+	struct iostream *io = va_arg(ap, struct iostream *);
+	const char str[] = "test";
+	struct iovec iov = {(void *)str, sizeof(str)};
+	int rc = coio_writev(io, &iov, 1, 0);
+	if (rc < (ssize_t)sizeof(str))
+		return -1;
+	return 0;
+}
+
+static void
+read_write_test(void)
+{
+	header();
+
+	fiber_func test_funcs[] = {
+		test_read_f,
+		test_write_f,
+		test_writev_f,
+	};
+	const char *descr[] = {
+		"read",
+		"write",
+		"writev",
+	};
+
+	int num_tests = sizeof(test_funcs) / sizeof(test_funcs[0]);
+	plan(2 * num_tests);
+
+	struct test_stream s;
+	test_stream_create(&s, 0, 0);
+	for (int i = 0; i < num_tests; i++) {
+		test_stream_reset(&s, 0, 0);
+		struct fiber *f = fiber_new_xc("rw_test", test_funcs[i]);
+		fiber_set_joinable(f, true);
+		fiber_start(f, &s.io);
+		fiber_wakeup(f);
+		fiber_sleep(0);
+		ok(!fiber_is_dead(f), "coio_%s handle spurious wakeup",
+		   descr[i]);
+		test_stream_reset(&s, INT_MAX, INT_MAX);
+		fiber_wakeup(f);
+		int rc = fiber_join(f);
+		ok(rc == 0, "coio_%s success after a spurious wakeup",
+		   descr[i]);
+	}
+	test_stream_destroy(&s);
+
+	check_plan();
+	footer();
+}
+
+static int
 main_f(va_list ap)
 {
 	const char *filename = "1.out";
@@ -134,6 +210,8 @@ main_f(va_list ap)
 	fiber_join(call_fiber);
 
 	test_getaddrinfo();
+
+	read_write_test();
 
 	ev_break(loop(), EVBREAK_ALL);
 	return 0;

@@ -119,7 +119,7 @@ if (GLIBC_USED)
     target_link_libraries(cbus_hang.test core unit stat)
 endif ()
 
-add_executable(coio.test coio.cc core_test_utils.c)
+add_executable(coio.test coio.cc core_test_utils.c test_iostream.c)
 target_link_libraries(coio.test core eio bit uri unit)
 
 if (ENABLE_BUNDLED_MSGPUCK)
