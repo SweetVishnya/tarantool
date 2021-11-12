@@ -202,3 +202,55 @@ uri_query_param_count(const struct uri *uri, const char *name)
 		uri_find_query_param(uri, name);
 	return (param != NULL ? param->value_count : 0);
 }
+
+static int
+uri_set_add_uri(struct uri_set *uri_set, const char *str)
+{
+      size_t size = (uri_set->uri_count + 1) * sizeof(struct uri);
+      uri_set->uris = xrealloc(uri_set->uris, size);
+      struct uri *uri = &uri_set->uris[uri_set->uri_count++];
+      return uri_create(uri, str);
+}
+
+void
+uri_set_destroy(struct uri_set *uri_set)
+{
+	for (int i = 0; i < uri_set->uri_count; i++)
+		uri_destroy(&uri_set->uris[i]);
+	free(uri_set->uris);
+	TRASH(uri_set);
+}
+
+int
+uri_set_create(struct uri_set *uri_set, const char *str)
+{
+	uri_set->uris = NULL;
+	uri_set->uri_count = 0;
+	return uri_set_add_uris(uri_set, str);
+}
+
+int
+uri_set_add_uris(struct uri_set *uri_set, const char *str)
+{
+	if (str == NULL)
+		return 0;
+	int uri_count = uri_set->uri_count;
+	char *copy = xstrdup(str);
+	char *saveptr, *uristr = strtok_r(copy, ",", &saveptr);
+	while (uristr != NULL) {
+		if (uri_set_add_uri(uri_set, uristr) != 0)
+			goto fail;
+		uristr = strtok_r(NULL, ", ", &saveptr);
+	}
+	free(copy);
+	return 0;
+fail:
+	free(copy);
+	while (--uri_set->uri_count >= uri_count)
+		uri_destroy(&uri_set->uris[uri_set->uri_count]);
+	if (++uri_set->uri_count == 0) {
+		free(uri_set->uris);
+		uri_set->uris = 0;
+	}
+	return -1;
+}

@@ -38,6 +38,13 @@ struct uri {
 	struct uri_query_param *params;
 };
 
+struct uri_set {
+	/** Count of URIs */
+	int uri_count;
+	/** Array of URIs */
+	struct uri *uris;
+};
+
 #define URI_HOST_UNIX "unix/"
 #define URI_MAXHOST NI_MAXHOST
 #define URI_MAXSERVICE _POSIX_PATH_MAX /* _POSIX_PATH_MAX always > NI_MAXSERV */
@@ -63,6 +70,31 @@ uri_create(struct uri *uri, const char *str);
  */
 void
 uri_destroy(struct uri *uri);
+
+/**
+ * Work same as `uri_create` function but could parse
+ * string which contains several URIs separated by
+ * commas. Create @a uri_set from appropriate @a str.
+ */
+int
+uri_set_create(struct uri_set *uri_set, const char *str);
+
+/**
+ * Destroy previosly created @a uri_set. Should be called
+ * after each `uri_set_create` function call.
+ */
+void
+uri_set_destroy(struct uri_set *uri_set);
+
+/**
+ * Add one or several URIs to @a uri_set structure. New URIs are
+ * created based on @a str, which contains one or several URIs
+ * separated by commas. Return 0 if success, otherwise return -1
+ * and leaves @a uri_set structure in the same state it was in
+ * before calling this function.
+ */
+int
+uri_set_add_uris(struct uri_set *uri_set, const char *str);
 
 int
 uri_format(char *str, int len, const struct uri *uri, bool write_password);
