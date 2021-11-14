@@ -1,6 +1,7 @@
 name: jepsen-cluster-txm
 
 on:
+  push:
   repository_dispatch:
     types: [backend_automation]
   workflow_dispatch:
@@ -10,7 +11,8 @@ env:
 
 jobs:
   jepsen-cluster-txm:
-    if: github.event_name == 'repository_dispatch' ||
+    if: github.event_name == 'push' ||
+        github.event_name == 'repository_dispatch' ||
         github.event_name == 'workflow_dispatch'
 
     runs-on: ubuntu-18.04
