@@ -173,10 +173,28 @@ signal_cb(ev_loop *loop, struct ev_signal *w, int revents)
 	 * a bug that the server suddenly died. Make such case
 	 * explicit in the log.
 	 */
+
 	if (pid_file)
 		say_crit("got signal %d - %s", w->signum, strsignal(w->signum));
 	tarantool_exit(0);
 }
+
+static void
+signal_int_cb(ev_loop *loop, struct ev_signal *w, int revents)
+{
+    (void) loop;
+    (void) w;
+    (void) revents;
+
+    /*
+     * temporary clone of @signal_cb
+     */
+
+    if (pid_file)
+        say_crit("got signal %d - %s", w->signum, strsignal(w->signum));
+    tarantool_exit(0);
+}
+
 
 static void
 signal_sigwinch_cb(ev_loop *loop, struct ev_signal *w, int revents)
@@ -251,7 +269,7 @@ signal_init(void)
 	crash_signal_init();
 
 	ev_signal_init(&ev_sigs[0], sig_checkpoint, SIGUSR1);
-	ev_signal_init(&ev_sigs[1], signal_cb, SIGINT);
+	ev_signal_init(&ev_sigs[1], signal_int_cb, SIGINT);
 	ev_signal_init(&ev_sigs[2], signal_cb, SIGTERM);
 	ev_signal_init(&ev_sigs[3], signal_sigwinch_cb, SIGWINCH);
 	ev_signal_init(&ev_sigs[4], say_logrotate, SIGHUP);
