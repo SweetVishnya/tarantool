@@ -1,6 +1,6 @@
 #!/usr/bin/env tarantool
 local test = require("sqltester")
-test:plan(110)
+test:plan(113)
 
 box.schema.func.create('A1', {
     language = 'Lua',
@@ -977,6 +977,37 @@ test:do_catchsql_test(
         SELECT ZEROBLOB(a) FROM t;
     ]], {
         1, "Failed to execute SQL statement: wrong arguments for function ZEROBLOB()"
+    })
+
+box.execute([[CREATE TABLE t1 (id INTEGER PRIMARY KEY AUTOINCREMENT, a ANY,
+                               g UNSIGNED, t STRING, n NUMBER, f DOUBLE,
+                               i INTEGER, b BOOLEAN, v VARBINARY, s SCALAR,
+                               d DECIMAL, u UUID);]])
+
+-- Make sure syntax for ARRAY values works as intended.
+test:do_execsql_test(
+    "array-13.1",
+    [[
+        SELECT [a, g, t, n, f, i, b, v, s, d, u] FROM t1 WHERE id = 1;
+    ]], {
+        {{1}, 1, '1', 1, 1, 1, true, '1', 1, require('decimal').new(1),
+         require('uuid').fromstr('11111111-1111-1111-1111-111111111111')}
+    })
+
+test:do_execsql_test(
+    "array-13.2",
+    [[
+        SELECT [1, true, 1.5e0, ['asd', x'32'], 1234.0];
+    ]], {
+        {1, true, 1.5, {'asd', '2'}, require('decimal').new(1234)}
+    })
+
+test:do_execsql_test(
+    "array-13.3",
+    [[
+        SELECT typeof([1]);
+    ]], {
+        "array"
     })
 
 box.execute([[DROP TABLE t1;]])

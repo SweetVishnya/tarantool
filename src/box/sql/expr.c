@@ -3821,6 +3821,22 @@ sqlExprCodeTarget(Parse * pParse, Expr * pExpr, int target)
 			return inReg;
 		}
 
+	case TK_ARRAY: {
+		struct ExprList *list = pExpr->x.pList;
+		int count = list == NULL ? 0 : list->nExpr;
+		if (count > 0) {
+			r1 = sqlGetTempRange(pParse, count);
+			sqlExprCachePush(pParse);
+			sqlExprCodeExprList(pParse, list, r1, 0,
+					    SQL_ECEL_FACTOR);
+			sqlExprCachePop(pParse);
+		} else {
+			r1 = 0;
+		}
+		sqlVdbeAddOp3(v, OP_Array, count, target, r1);
+		return target;
+	}
+
 	case TK_LT:
 	case TK_LE:
 	case TK_GT:
