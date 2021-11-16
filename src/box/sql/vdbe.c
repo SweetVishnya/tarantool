@@ -1435,6 +1435,23 @@ case OP_Array: {
 	break;
 }
 
+/* Opcode: Map P1 P2 P3 * *
+ * Synopsis: type(r[P1])
+ */
+case OP_Map: {
+	pOut = &aMem[pOp->p2];
+
+	uint32_t size;
+	struct region *region = &fiber()->gc;
+	size_t svp = region_used(region);
+	char *map = mem_encode_map(&aMem[pOp->p3], pOp->p1, &size, region);
+	int rc = map == NULL || mem_copy_map(pOut, map, size) != 0 ? -1 : 0;
+	region_truncate(region, svp);
+	if (rc != 0)
+		goto abort_due_to_error;
+	break;
+}
+
 /* Opcode: Eq P1 P2 P3 P4 P5
  * Synopsis: IF r[P3]==r[P1]
  *

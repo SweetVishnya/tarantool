@@ -3370,6 +3370,36 @@ int_overflow:
 			  is_neg ? P4_INT64 : P4_UINT64);
 }
 
+static void
+expr_code_map(struct Parse *parser, struct Expr *expr, int reg)
+{
+	struct Vdbe *vdbe = parser->pVdbe;
+	struct ExprList *list = expr->x.pList;
+	if (list == NULL) {
+		sqlVdbeAddOp3(vdbe, OP_Map, 0, reg, 0);
+		return;
+	}
+	int count = list->nExpr;
+	assert(count % 2 == 0);
+	for (int i = 0; i < count / 2; ++i) {
+		struct Expr *expr = list->a[2 * i].pExpr;
+		enum field_type type = sql_expr_type(expr);
+		if (expr->op != TK_VARIABLE && type != FIELD_TYPE_INTEGER &&
+		    type != FIELD_TYPE_UNSIGNED && type != FIELD_TYPE_STRING &&
+		    type != FIELD_TYPE_UUID) {
+			diag_set(ClientError, ER_SQL_PARSER_GENERIC, "Only "
+				 "integer, string and uuid can be keys in map");
+			parser->is_aborted = true;
+			return;
+		}
+	}
+	int r = sqlGetTempRange(parser, count);
+	sqlExprCachePush(parser);
+	sqlExprCodeExprList(parser, list, r, 0, SQL_ECEL_FACTOR);
+	sqlExprCachePop(parser);
+	sqlVdbeAddOp3(vdbe, OP_Map, count, reg, r);
+}
+
 /*
  * Erase column-cache entry number i
  */
@@ -3836,6 +3866,10 @@ sqlExprCodeTarget(Parse * pParse, Expr * pExpr, int target)
 		sqlVdbeAddOp3(v, OP_Array, count, target, r1);
 		return target;
 	}
+
+	case TK_MAP:
+		expr_code_map(pParse, pExpr, target);
+		return target;
 
 	case TK_LT:
 	case TK_LE:

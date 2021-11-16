@@ -86,6 +86,8 @@
 #define CC_LB        29		/* '[' */
 #define CC_RB        30		/* ']' */
 #define CC_COLON     31		/* ':' */
+#define CC_LCB       32		/* '{' */
+#define CC_RCB       33		/* '}' */
 
 static const char sql_ascii_class[] = {
 /*       x0  x1  x2  x3  x4  x5  x6  x7  x8 x9  xa xb  xc xd xe  xf */
@@ -96,7 +98,7 @@ static const char sql_ascii_class[] = {
 /* 4x */ 5, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 /* 5x */ 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 29, 27, 30, 27, 1,
 /* 6x */ 27, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-/* 7x */ 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 27, 10, 27, 25, 27,
+/* 7x */ 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 32, 10, 33, 25, 27,
 /* 8x */ 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
 /* 9x */ 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
 /* Ax */ 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
@@ -228,6 +230,15 @@ sql_token(const char *z, int *type, bool *is_reserved)
 		return 1;
 	case CC_RB:
 		*type = TK_RB;
+		return 1;
+	case CC_LCB:
+		*type = TK_LCB;
+		return 1;
+	case CC_RCB:
+		*type = TK_RCB;
+		return 1;
+	case CC_COLON:
+		*type = TK_COLON;
 		return 1;
 	case CC_SEMI:
 		*type = TK_SEMI;

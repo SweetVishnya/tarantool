@@ -1143,6 +1143,37 @@ expr(A) ::= LB(X) exprlist(Y) RB(E). {
   spanSet(&A, &X, &E);
 }
 
+expr(A) ::= LCB(X) maplist(Y) RCB(E). {
+  struct sql *db = pParse->db;
+  struct Expr *expr = sql_expr_new_dequoted(db, TK_MAP, NULL);
+  if (expr == NULL) {
+    sql_expr_list_delete(db, Y);
+    pParse->is_aborted = true;
+    return;
+  }
+  expr->x.pList = Y;
+  expr->type = FIELD_TYPE_MAP;
+  sqlExprSetHeightAndFlags(pParse, expr);
+  A.pExpr = expr;
+  spanSet(&A, &X, &E);
+}
+
+maplist(A) ::= nmaplist(A).
+maplist(A) ::= .                                  {A = 0;}
+nmaplist(A) ::= nmaplist(A) COMMA expr(X) COLON expr(Y). {
+  A = sql_expr_list_append(pParse->db, A, X.pExpr);
+  A = sql_expr_list_append(pParse->db, A, Y.pExpr);
+}
+nmaplist(A) ::= expr(X) COLON expr(Y). {
+  A = sql_expr_list_append(pParse->db, NULL, X.pExpr);
+  A = sql_expr_list_append(pParse->db, A, Y.pExpr);
+}
+
+%type maplist {ExprList*}
+%destructor maplist {sql_expr_list_delete(pParse->db, $$);}
+%type nmaplist {ExprList*}
+%destructor nmaplist {sql_expr_list_delete(pParse->db, $$);}
+
 expr(A) ::= TRIM(X) LP trim_operands(Y) RP(E). {
   A.pExpr = sqlExprFunction(pParse, Y, &X);
   spanSet(&A, &X, &E);
