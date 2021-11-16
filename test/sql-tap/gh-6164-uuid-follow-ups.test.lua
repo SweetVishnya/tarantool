@@ -31,7 +31,7 @@ test:do_test(
 test:do_test(
     "gh-6164-4",
     function()
-        return box.execute([[SELECT :two;]], {{[":two"] = uuid3}}).rows[1][1]
+        return box.execute([[SELECT #two;]], {{["#two"] = uuid3}}).rows[1][1]
     end,
     uuid3)
 

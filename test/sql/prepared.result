@@ -516,17 +516,17 @@ unprepare(s.stmt_id)
 
 -- gh-4760: make sure that names of all bindings are parsed correctly.
 --
-s = prepare("SELECT a FROM test WHERE id = :id AND b = :name")
+s = prepare("SELECT a FROM test WHERE id = #id AND b = #name")
  | ---
  | ...
 s.params[1]
  | ---
- | - name: :id
+ | - name: '#id'
  |   type: ANY
  | ...
 s.params[2]
  | ---
- | - name: :name
+ | - name: '#name'
  |   type: ANY
  | ...
 unprepare(s.stmt_id)
@@ -534,7 +534,7 @@ unprepare(s.stmt_id)
  | - null
  | ...
 
-s = prepare("SELECT ?, :id, :name, ?, @name2, ?")
+s = prepare("SELECT ?, @id, @name, ?, @name2, ?")
  | ---
  | ...
 s.params[1]
@@ -544,12 +544,12 @@ s.params[1]
  | ...
 s.params[2]
  | ---
- | - name: :id
+ | - name: '@id'
  |   type: ANY
  | ...
 s.params[3]
  | ---
- | - name: :name
+ | - name: '@name'
  |   type: ANY
  | ...
 s.params[4]
@@ -832,10 +832,10 @@ f2:join();
 -- execution, so that they don't appear in the next statement
 -- execution.
 --
-s = prepare('SELECT :a, :b, :c');
+s = prepare('SELECT @a, #b, @c');
  | ---
  | ...
-execute(s.stmt_id, {{[':a'] = 1}, {[':b'] = 2}, {[':c'] = 3}});
+execute(s.stmt_id, {{['@a'] = 1}, {['#b'] = 2}, {['@c'] = 3}});
  | ---
  | - metadata:
  |   - name: COLUMN_1
@@ -847,7 +847,7 @@ execute(s.stmt_id, {{[':a'] = 1}, {[':b'] = 2}, {[':c'] = 3}});
  |   rows:
  |   - [1, 2, 3]
  | ...
-execute(s.stmt_id, {{[':a'] = 1}, {[':b'] = 2}});
+execute(s.stmt_id, {{['@a'] = 1}, {['#b'] = 2}});
  | ---
  | - metadata:
  |   - name: COLUMN_1

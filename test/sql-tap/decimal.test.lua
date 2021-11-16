@@ -955,7 +955,7 @@ test:do_test(
 test:do_test(
     "dec-16-3",
     function()
-        return box.execute([[SELECT :two;]], {{[":two"] = dec3}}).rows[1][1]
+        return box.execute([[SELECT #two;]], {{["#two"] = dec3}}).rows[1][1]
     end,
     dec3)
 

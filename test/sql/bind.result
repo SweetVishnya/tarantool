@@ -59,10 +59,10 @@ parameters = {}
 parameters[1] = {}
 ---
 ...
-parameters[1][':value'] = 1
+parameters[1]['@value'] = 1
 ---
 ...
-execute('SELECT * FROM test WHERE id = :value', parameters)
+execute('SELECT * FROM test WHERE id = @value', parameters)
 ---
 - metadata:
   - name: ID
@@ -101,10 +101,10 @@ parameters[2]['@value2'] = 12
 parameters[3] = {}
 ---
 ...
-parameters[3][':value1'] = 11
+parameters[3]['#value1'] = 11
 ---
 ...
-execute('SELECT ?, :value1, @value2', parameters)
+execute('SELECT ?, #value1, @value2', parameters)
 ---
 - metadata:
   - name: COLUMN_1
@@ -122,7 +122,7 @@ parameters = {}
 parameters[1] = {}
 ---
 ...
-parameters[1][':value3'] = 1
+parameters[1]['#value3'] = 1
 ---
 ...
 parameters[2] = 2
@@ -131,7 +131,7 @@ parameters[2] = 2
 parameters[3] = {}
 ---
 ...
-parameters[3][':value1'] = 3
+parameters[3]['#value1'] = 3
 ---
 ...
 parameters[4] = 4
@@ -146,7 +146,7 @@ parameters[6] = {}
 parameters[6]['@value2'] = 6
 ---
 ...
-execute('SELECT :value3, ?, :value1, ?, ?, @value2, ?, :value3', parameters)
+execute('SELECT #value3, ?, #value1, ?, ?, @value2, ?, #value3', parameters)
 ---
 - metadata:
   - name: COLUMN_1
@@ -278,12 +278,12 @@ parameters = {}
 parameters[1] = {}
 ---
 ...
-parameters[1][':value'] = {kek = 300}
+parameters[1]['#value'] = {kek = 300}
 ---
 ...
-execute('SELECT :value', parameters)
+execute('SELECT #value', parameters)
 ---
-- error: Bind value type MAP for parameter ':value' is not supported
+- error: Bind value type MAP for parameter '#value' is not supported
 ...
 -- gh-3810: bind values of integer in range up to 2^64 - 1.
 --

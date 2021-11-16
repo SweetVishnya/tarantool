@@ -510,12 +510,11 @@ test:do_catchsql_test(
 test:do_catchsql_test(
     "check-5.1",
     [[
-        CREATE TABLE t5(x  INT primary key, y INT ,
-          CHECK( x*y<:abc )
-        );
+        CREATE TABLE t5(x INT primary key, y INT, CHECK(x * y < #abc));
     ]], {
         -- <check-5.1>
-        1, "Failed to create check constraint 'ck_unnamed_T5_1': At line 1 at or near position 9: bindings are not allowed in DDL"
+        1, "Failed to create check constraint 'ck_unnamed_T5_1': At line 1 "..
+           "at or near position 13: bindings are not allowed in DDL"
         -- </check-5.1>
     })
 

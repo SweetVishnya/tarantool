@@ -401,10 +401,10 @@ parameters[1]['@value2'] = true
 parameters[2] = {}
  | ---
  | ...
-parameters[2][':value1'] = false
+parameters[2]['#value1'] = false
  | ---
  | ...
-box.execute('SELECT :value1, @value2;', parameters)
+box.execute('SELECT #value1, @value2;', parameters)
  | ---
  | - metadata:
  |   - name: COLUMN_1

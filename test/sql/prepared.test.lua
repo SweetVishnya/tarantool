@@ -191,12 +191,12 @@ unprepare(s.stmt_id)
 
 -- gh-4760: make sure that names of all bindings are parsed correctly.
 --
-s = prepare("SELECT a FROM test WHERE id = :id AND b = :name")
+s = prepare("SELECT a FROM test WHERE id = #id AND b = #name")
 s.params[1]
 s.params[2]
 unprepare(s.stmt_id)
 
-s = prepare("SELECT ?, :id, :name, ?, @name2, ?")
+s = prepare("SELECT ?, @id, @name, ?, @name2, ?")
 s.params[1]
 s.params[2]
 s.params[3]
@@ -323,9 +323,9 @@ f2:join();
 -- execution, so that they don't appear in the next statement
 -- execution.
 --
-s = prepare('SELECT :a, :b, :c');
-execute(s.stmt_id, {{[':a'] = 1}, {[':b'] = 2}, {[':c'] = 3}});
-execute(s.stmt_id, {{[':a'] = 1}, {[':b'] = 2}});
+s = prepare('SELECT @a, #b, @c');
+execute(s.stmt_id, {{['@a'] = 1}, {['#b'] = 2}, {['@c'] = 3}});
+execute(s.stmt_id, {{['@a'] = 1}, {['#b'] = 2}});
 execute(s.stmt_id);
 unprepare(s.stmt_id);
 

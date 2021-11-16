@@ -165,7 +165,7 @@ test:do_catchsql_test(
 	CREATE TABLE t2(
 	rowid INTEGER PRIMARY KEY AUTOINCREMENT,
 	a TEXT,
-	b TEXT DEFAULT(:xyz)
+	b TEXT DEFAULT(#xyz)
 	);
 	]], {
 	-- <default-4.2>
@@ -179,7 +179,7 @@ test:do_catchsql_test(
 	CREATE TABLE t2(
 	rowid INTEGER PRIMARY KEY AUTOINCREMENT,
 	a TEXT,
-	b TEXT DEFAULT(abs(:xyz))
+	b TEXT DEFAULT(abs(@xyz))
 	);
 	]], {
 	-- <default-4.3>
@@ -193,7 +193,7 @@ test:do_catchsql_test(
 	CREATE TABLE t2(
 	rowid INTEGER PRIMARY KEY AUTOINCREMENT,
 	a TEXT,
-	b TEXT DEFAULT(98+coalesce(5,:xyz))
+	b TEXT DEFAULT(98 + coalesce(5, @xyz))
 	);
 	]], {
 	-- <default-4.4>

@@ -103,8 +103,8 @@ parameters = {}
 parameters[1] = {}
 parameters[1]['@value2'] = true
 parameters[2] = {}
-parameters[2][':value1'] = false
-box.execute('SELECT :value1, @value2;', parameters)
+parameters[2]['#value1'] = false
+box.execute('SELECT #value1, @value2;', parameters)
 \set language sql
 
 -- Check interactions with CHECK constraint.

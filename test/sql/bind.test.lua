@@ -29,28 +29,28 @@ test_run:cmd("setopt delimiter ''");
 --
 parameters = {}
 parameters[1] = {}
-parameters[1][':value'] = 1
-execute('SELECT * FROM test WHERE id = :value', parameters)
+parameters[1]['@value'] = 1
+execute('SELECT * FROM test WHERE id = @value', parameters)
 execute('SELECT ?, ?, ?', {1, 2, 3})
 parameters = {}
 parameters[1] = 10
 parameters[2] = {}
 parameters[2]['@value2'] = 12
 parameters[3] = {}
-parameters[3][':value1'] = 11
-execute('SELECT ?, :value1, @value2', parameters)
+parameters[3]['#value1'] = 11
+execute('SELECT ?, #value1, @value2', parameters)
 
 parameters = {}
 parameters[1] = {}
-parameters[1][':value3'] = 1
+parameters[1]['#value3'] = 1
 parameters[2] = 2
 parameters[3] = {}
-parameters[3][':value1'] = 3
+parameters[3]['#value1'] = 3
 parameters[4] = 4
 parameters[5] = 5
 parameters[6] = {}
 parameters[6]['@value2'] = 6
-execute('SELECT :value3, ?, :value1, ?, ?, @value2, ?, :value3', parameters)
+execute('SELECT #value3, ?, #value1, ?, ?, @value2, ?, #value3', parameters)
 
 -- Try not-integer types.
 msgpack = require('msgpack')
@@ -92,8 +92,8 @@ ok
 
 parameters = {}
 parameters[1] = {}
-parameters[1][':value'] = {kek = 300}
-execute('SELECT :value', parameters)
+parameters[1]['#value'] = {kek = 300}
+execute('SELECT #value', parameters)
 
 -- gh-3810: bind values of integer in range up to 2^64 - 1.
 --

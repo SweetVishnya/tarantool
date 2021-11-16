@@ -59,7 +59,7 @@
 #define CC_ID         2		/* unicode characters usable in IDs */
 #define CC_DIGIT      3		/* Digits */
 #define CC_DOLLAR     4		/* '$' */
-#define CC_VARALPHA   5		/* '@', '#', ':'.  Alphabetic SQL variables */
+#define CC_VARALPHA   5		/* '@', '#'.  Alphabetic SQL variables */
 #define CC_VARNUM     6		/* '?'.  Numeric SQL variables */
 #define CC_SPACE      7		/* Space characters */
 #define CC_QUOTE      8		/* '\''. String literals */
@@ -85,13 +85,14 @@
 #define CC_LINEFEED  28		/* '\n' */
 #define CC_LB        29		/* '[' */
 #define CC_RB        30		/* ']' */
+#define CC_COLON     31		/* ':' */
 
 static const char sql_ascii_class[] = {
 /*       x0  x1  x2  x3  x4  x5  x6  x7  x8 x9  xa xb  xc xd xe  xf */
 /* 0x */ 27, 27, 27, 27, 27, 27, 27, 27, 27, 7, 28, 7, 7, 7, 27, 27,
 /* 1x */ 27, 27, 27, 27, 27, 27, 27, 27, 27, 27, 27, 27, 27, 27, 27, 27,
 /* 2x */ 7, 15, 9, 5, 4, 22, 24, 8, 17, 18, 21, 20, 23, 11, 26, 16,
-/* 3x */ 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 5, 19, 12, 14, 13, 6,
+/* 3x */ 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 31, 19, 12, 14, 13, 6,
 /* 4x */ 5, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 /* 5x */ 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 29, 27, 30, 27, 1,
 /* 6x */ 27, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
