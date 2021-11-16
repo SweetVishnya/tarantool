@@ -1917,9 +1917,11 @@ tx_process_begin(struct cmsg *m)
 	if (tx_check_schema(msg->header.schema_version))
 		goto error;
 
+	fprintf(stderr, "TX PROCESS BEGIN!!!!\n");
 	if (box_txn_begin() != 0)
 		goto error;
 
+	fprintf(stderr, "TX PROCESS BEGIN %f!!!!\n", msg->begin.timeout);
 	if (msg->begin.timeout != 0 &&
 	    box_txn_set_timeout(msg->begin.timeout) != 0) {
 		int rc = box_txn_rollback();
@@ -2022,6 +2024,7 @@ tx_process_select(struct cmsg *m)
 	if (tx_check_schema(msg->header.schema_version))
 		goto error;
 
+	fprintf(stderr, "TX PROCESS SELECT %llu!!!\n", (unsigned long long)(msg->stream ? msg->stream->id : 0) );
 	tx_inject_delay();
 	rc = box_select(req->space_id, req->index_id,
 			req->iterator, req->offset, req->limit,

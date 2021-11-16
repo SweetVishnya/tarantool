@@ -1143,6 +1143,7 @@ box_txn_alloc(size_t size)
 int
 box_txn_set_timeout(double timeout)
 {
+	fprintf(stderr, "BOX TXN SET TIMEOUT %f\n", timeout);
 	if (timeout <= 0) {
 		diag_set(ClientError, ER_ILLEGAL_PARAMS,
 			 "timeout must be a number greater than 0");
@@ -1157,6 +1158,7 @@ box_txn_set_timeout(double timeout)
 		diag_set(ClientError, ER_ACTIVE_TIMER);
 		return -1;
 	}
+	fprintf(stderr, "SET TIMEOUT SUCCESS\n");
 	txn_set_timeout(txn, timeout);
 	return 0;
 }
@@ -1287,6 +1289,7 @@ txn_on_timeout(ev_loop *loop, ev_timer *watcher, int revents)
 	(void) loop;
 	(void) revents;
 	struct txn *txn = (struct txn *)watcher->data;
+	fprintf(stderr, "TXN ON TIMEOUT !!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
 	txn_rollback_to_svp(txn, NULL);
 	txn_set_flags(txn, TXN_IS_ABORTED_BY_TIMEOUT);
 }
@@ -1316,13 +1319,16 @@ txn_on_yield(struct trigger *trigger, void *event)
 	struct txn *txn = in_txn();
 	assert(txn != NULL);
 	enum txn_flag flags = TXN_CAN_YIELD | TXN_IS_ABORTED_BY_YIELD;
+	fprintf(stderr, "TXN ON YIELD, TIMEOUT %f\n", txn->timeout);
 	if (!txn_has_any_of_flags(txn, flags)) {
+		fprintf(stderr, "ABORTED BY YIELD\n");
 		txn_rollback_to_svp(txn, NULL);
 		txn_set_flags(txn, TXN_IS_ABORTED_BY_YIELD);
 		say_warn("Transaction has been aborted by a fiber yield");
 		return 0;
 	}
 	if (txn->rollback_timer == NULL && txn->timeout != TIMEOUT_INFINITY) {
+		fprintf(stderr, "TIMER CREATE WITH TIMEOUT %f\n", txn->timeout);
 		int size;
 		txn->rollback_timer = region_alloc_object(&txn->region,
 							  struct ev_timer,
